@@ -13,28 +13,65 @@ class UserController {
     }
 
     public function index() {
-        $this->auth->requireLogin();
-        if (!$this->auth->hasPermission('users', 'view')) {
-            http_response_code(403); echo json_encode(['error' => 'Forbidden']); return;
+        try {
+            $this->auth->requireLogin();
+            if (!$this->auth->hasPermission('users', 'view')) {
+                http_response_code(403); echo json_encode(['error' => 'Forbidden']); return;
+            }
+            
+            $sql = "SELECT users.id, users.local_id, users.username, users.role, users.org_id, users.permissions, organizations.name as org_name 
+                    FROM users 
+                    LEFT JOIN organizations ON users.org_id = organizations.id";
+            $sqlCount = "SELECT COUNT(*) as total FROM users";
+            
+            $params = [];
+            $countParams = [];
+            $whereClauses = [];
+            
+            // 1. Mandatory Org Filter (Session)
+            if (!$this->auth->hasRole('super_admin')) {
+                $whereClauses[] = "users.org_id = ?";
+                $params[] = $this->auth->getOrgId();
+            }
+            
+            // 2. Optional GET Filters
+            if (isset($_GET['username'])) {
+                $whereClauses[] = "users.username LIKE ?";
+                $params[] = "%" . $_GET['username'] . "%";
+            }
+            if (isset($_GET['id'])) {
+                $whereClauses[] = "users.id = ?";
+                $params[] = $_GET['id'];
+            }
+            if (isset($_GET['org_id']) && $this->auth->hasRole('super_admin')) { // Only super admin can filter by org manually
+                $whereClauses[] = "users.org_id = ?";
+                $params[] = $_GET['org_id'];
+            }
+            
+            // Apply Filters
+            if (!empty($whereClauses)) {
+                $whereSql = " WHERE " . implode(" AND ", $whereClauses);
+                $sql .= $whereSql;
+                $sqlCount .= $whereSql;
+                $countParams = $params;
+            }
+            
+            $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 1000;
+            $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+            
+            $sql .= " ORDER BY users.id DESC LIMIT $limit OFFSET $offset";
+    
+            $users = $this->db->fetchAll($sql, $params);
+            $total = $this->db->fetchOne($sqlCount, $countParams);
+            
+            echo json_encode([
+                 'data' => $users, 
+                 'total' => (int)($total['total'] ?? 0)
+            ]);
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            echo json_encode(['error' => $e->getMessage()]);
         }
-        
-        // Super Admin sees all users? Or maybe just Org Admins?
-        // Let's say Super Admin sees all, Org Admin sees their org's users.
-        
-        $params = [];
-        $sql = "SELECT users.id, users.local_id, users.username, users.role, users.org_id, users.permissions, organizations.name as org_name 
-                FROM users 
-                LEFT JOIN organizations ON users.org_id = organizations.id";
-        
-        if (!$this->auth->hasRole('super_admin')) {
-            $sql .= " WHERE users.org_id = ?";
-            $params[] = $this->auth->getOrgId();
-        }
-        
-        $sql .= " ORDER BY users.id DESC";
-
-        $users = $this->db->fetchAll($sql, $params);
-        echo json_encode($users);
     }
 
     public function create() {

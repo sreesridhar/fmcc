@@ -68,14 +68,17 @@ class SiteController {
                 ORDER BY s.id DESC 
                 LIMIT $limit OFFSET $offset";
                 
+        // Count total for pagination
+        $countSql = "SELECT COUNT(s.id) as total FROM sites s LEFT JOIN clients c ON s.client_id = c.id WHERE $whereSql";
+        
         // Fetch items
         $sites = $this->db->fetchAll($sql, $params);
+        $total = $this->db->fetchOne($countSql, $params); // Use the same params for count query
         
-        // Count total for pagination (optional, but good for 'has_more' logic if needed strictly, 
-        // but for infinite scroll we can just check if count(sites) == limit)
-        // Let's just return what we have.
-        
-        echo json_encode($sites);
+        echo json_encode([
+            'data' => $sites,
+            'total' => (int)($total['total'] ?? 0)
+        ]);
     }
 
     public function update($id) {

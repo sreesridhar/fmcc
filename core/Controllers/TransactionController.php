@@ -20,6 +20,7 @@ class TransactionController {
         $org_id = $this->auth->getOrgId();
         
         // Filters
+        $id = $_GET['id'] ?? null;
         $type = $_GET['type'] ?? null;
         $client_id = $_GET['client_id'] ?? null;
         $site_id = $_GET['site_id'] ?? null;
@@ -36,24 +37,69 @@ class TransactionController {
         
         $params = [];
         
+        // Base Where Clause
+        $whereSql = " WHERE 1=1"; 
+        // Note: For super_admin, we start with 1=1. For others, we append org_id check.
+        // But to be consistent, let's just append.
+        
         if (!$this->auth->hasRole('super_admin')) {
              if (!$org_id) { echo json_encode([]); return; }
-             $sql .= " WHERE t.org_id = ?";
+             $whereSql .= " AND t.org_id = ?";
              $params[] = $org_id;
-        } else {
-             $sql .= " WHERE 1=1"; // Placeholder for appending AND
         }
         
-        if ($type) { $sql .= " AND t.transaction_type = ?"; $params[] = $type; }
-        if ($client_id) { $sql .= " AND t.client_id = ?"; $params[] = $client_id; }
-        if ($site_id) { $sql .= " AND t.site_id = ?"; $params[] = $site_id; }
-        if ($start_date) { $sql .= " AND t.transaction_date >= ?"; $params[] = $start_date; }
-        if ($end_date) { $sql .= " AND t.transaction_date <= ?"; $params[] = $end_date; }
+        // Count params must duplicate basic params
+        $countParams = $params;
+
+        if ($id) {
+            $whereSql .= " AND t.id = ?";
+            $params[] = $id;
+            $countParams[] = $id;
+        }
+
+        if ($type) { 
+            $whereSql .= " AND t.transaction_type = ?"; 
+            $params[] = $type; 
+            $countParams[] = $type;
+        }
+        if ($client_id) { 
+            $whereSql .= " AND t.client_id = ?"; 
+            $params[] = $client_id; 
+            $countParams[] = $client_id;
+        }
+        if ($site_id) { 
+            $whereSql .= " AND t.site_id = ?"; 
+            $params[] = $site_id; 
+            $countParams[] = $site_id;
+        }
+        if ($start_date) { 
+            $whereSql .= " AND t.transaction_date >= ?"; 
+            $params[] = $start_date; 
+            $countParams[] = $start_date;
+        }
+        if ($end_date) { 
+            $whereSql .= " AND t.transaction_date <= ?"; 
+            $params[] = $end_date; 
+            $countParams[] = $end_date;
+        }
+
+        $sql .= $whereSql;
+
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 1000;
+        $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+
+        // Count total records before applying LIMIT/OFFSET
+        $countSql = "SELECT COUNT(*) as total FROM transactions t JOIN categories c ON t.category_id = c.id" . $whereSql;
+        $total = $this->db->fetchOne($countSql, $countParams);
         
-        $sql .= " ORDER BY t.transaction_date DESC, t.id DESC";
+        $sql .= " ORDER BY t.transaction_date DESC, t.id DESC LIMIT $limit OFFSET $offset";
 
         $transactions = $this->db->fetchAll($sql, $params);
-        echo json_encode($transactions);
+        
+        echo json_encode([
+            'data' => $transactions,
+            'total' => (int)($total['total'] ?? 0)
+        ]);
     }
 
     public function create() {
@@ -73,8 +119,8 @@ class TransactionController {
             }
             
             // Basic Validation
-            if (empty($data['category_id']) || !isset($data['amount']) || empty($data['date'])) {
-                http_response_code(400); echo json_encode(['error' => 'Category, Amount, Date are required']); return;
+            if (empty($data['category_id']) || !isset($data['amount']) || empty($data['date']) || empty($data['client_id']) || empty($data['site_id'])) {
+                http_response_code(400); echo json_encode(['error' => 'Category, Amount, Date, Client, and Site are required']); return;
             }
     
             // Get Category to validate type and fields
@@ -146,8 +192,8 @@ class TransactionController {
             $data = json_decode($input, true);
             
             // Basic Validation
-            if (empty($data['category_id']) || !isset($data['amount']) || empty($data['date'])) {
-                http_response_code(400); echo json_encode(['error' => 'Category, Amount, Date are required']); return;
+            if (empty($data['category_id']) || !isset($data['amount']) || empty($data['date']) || empty($data['client_id']) || empty($data['site_id'])) {
+                http_response_code(400); echo json_encode(['error' => 'Category, Amount, Date, Client, and Site are required']); return;
             }
 
             // Get Category

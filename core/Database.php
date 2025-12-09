@@ -56,4 +56,8 @@ class Database {
         $this->query($sql, $params);
         return $this->pdo->lastInsertId();
     }
+
+    public function fetchOne($sql, $params = []) {
+        return $this->fetch($sql, $params);
+    }
 }
