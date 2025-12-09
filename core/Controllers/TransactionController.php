@@ -20,6 +20,7 @@ class TransactionController {
         $org_id = $this->auth->getOrgId();
         
         // Filters
+        $id = $_GET['id'] ?? null;
         $type = $_GET['type'] ?? null;
         $client_id = $_GET['client_id'] ?? null;
         $site_id = $_GET['site_id'] ?? null;
@@ -49,6 +50,12 @@ class TransactionController {
         
         // Count params must duplicate basic params
         $countParams = $params;
+
+        if ($id) {
+            $whereSql .= " AND t.id = ?";
+            $params[] = $id;
+            $countParams[] = $id;
+        }
 
         if ($type) { 
             $whereSql .= " AND t.transaction_type = ?"; 
@@ -112,8 +119,8 @@ class TransactionController {
             }
             
             // Basic Validation
-            if (empty($data['category_id']) || !isset($data['amount']) || empty($data['date'])) {
-                http_response_code(400); echo json_encode(['error' => 'Category, Amount, Date are required']); return;
+            if (empty($data['category_id']) || !isset($data['amount']) || empty($data['date']) || empty($data['client_id']) || empty($data['site_id'])) {
+                http_response_code(400); echo json_encode(['error' => 'Category, Amount, Date, Client, and Site are required']); return;
             }
     
             // Get Category to validate type and fields
@@ -185,8 +192,8 @@ class TransactionController {
             $data = json_decode($input, true);
             
             // Basic Validation
-            if (empty($data['category_id']) || !isset($data['amount']) || empty($data['date'])) {
-                http_response_code(400); echo json_encode(['error' => 'Category, Amount, Date are required']); return;
+            if (empty($data['category_id']) || !isset($data['amount']) || empty($data['date']) || empty($data['client_id']) || empty($data['site_id'])) {
+                http_response_code(400); echo json_encode(['error' => 'Category, Amount, Date, Client, and Site are required']); return;
             }
 
             // Get Category

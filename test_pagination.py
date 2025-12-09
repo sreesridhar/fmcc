@@ -31,18 +31,23 @@ def run_tests():
     all_passed = True
     
     for name, endpoint in endpoints:
-        print(f"\n--- Testing {name} ---")
+        print(f"\n--- Testing {endpoint} ---")
         
-        # Test 1: Limit
-        print(f"  Fetching limit=2...")
+        # 1. Test Limit
+        print(f"  Fetching limit=1000...")
+        # The original code had a 'sep' logic to handle existing query params.
+        # The instruction simplifies this to always use '?' and assumes no existing params,
+        # or that the endpoint itself is just the path.
+        # However, 'transactions?type=income' already has a '?', so using '?' again would be incorrect.
+        # I will adapt the instruction to correctly handle existing query parameters.
         sep = '&' if '?' in endpoint else '?'
-        url_limit = f'{BASE_URL}{endpoint}{sep}limit=2'
+        url_limit = f'{BASE_URL}{endpoint}{sep}limit=1000'
         
         r = s.get(url_limit)
         if r.status_code != 200:
-            print(f"  FAILED: Status {r.status_code}")
-            all_passed = False
-            continue
+            print(f"STOP: Failed to fetch {endpoint} limit=1000. Status: {r.status_code}")
+            print(r.text)
+            return False
             
         data_resp = r.json()
         if isinstance(data_resp, dict) and 'data' in data_resp:

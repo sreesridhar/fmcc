@@ -1,4 +1,6 @@
 import { api } from './utils/api.js';
+import { Autocomplete } from './components/autocomplete.js';
+import { Formatters } from './utils/formatters.js';
 
 const App = {
     user: null, // { id, username, role, org_id, permissions }
@@ -161,6 +163,43 @@ const App = {
             }
         };
     },
+
+    // Custom Helpers
+    confirm(message, title='Confirm Action') {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('confirmModal');
+            document.getElementById('confirmTitle').innerText = title;
+            document.getElementById('confirmMessage').innerText = message;
+            modal.classList.remove('hidden');
+            
+            const cleanup = () => {
+                modal.classList.add('hidden');
+                yesBtn.onclick = null;
+                cancelBtn.onclick = null;
+            };
+
+            const yesBtn = document.getElementById('confirmYesBtn');
+            const cancelBtn = document.getElementById('confirmCancelBtn');
+
+            yesBtn.onclick = () => { cleanup(); resolve(true); };
+            cancelBtn.onclick = () => { cleanup(); resolve(false); };
+        });
+    },
+
+    notify(message, type='info') {
+        const sb = document.getElementById('snackbar');
+        const msgEl = document.getElementById('snackbarMessage');
+        if(!sb || !msgEl) return;
+
+        msgEl.innerText = message;
+        sb.className = `fixed bottom-5 right-5 px-6 py-3 rounded shadow-lg text-white transform transition-all duration-300 z-50 pointer-events-none translate-y-0 opacity-100 ${type === 'error' ? 'bg-red-600' : (type === 'success' ? 'bg-green-600' : 'bg-gray-800')}`;
+        
+        // Auto hide
+        setTimeout(() => {
+             sb.classList.remove('translate-y-0', 'opacity-100');
+             sb.classList.add('translate-y-20', 'opacity-0');
+        }, 3000);
+    },
     
     router(page) {
         history.pushState({ page }, '', `/${page === 'dashboard' ? '' : page}`);
@@ -243,11 +282,11 @@ const App = {
                     <form id="loginForm">
                         <div class="form-group">
                             <label>Username</label>
-                            <input type="text" name="username" required>
+                            <input type="text" name="username" placeholder="Enter username" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
                         </div>
                         <div class="form-group">
                             <label>Password</label>
-                            <input type="password" name="password" required>
+                            <input type="password" name="password" placeholder="Enter password" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
                         </div>
                         <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
                     </form>
@@ -255,16 +294,52 @@ const App = {
             </div>
         `,
         dashboard: () => `
-            <div class="card">
-                <div class="flex justify-between items-center mb-6">
-                    <h3>Dashboard</h3>
-                    <div class="flex space-x-2 items-center">
-                        <input type="date" id="statsStart" class="p-2 border rounded text-sm">
-                        <span class="text-gray-400">-</span>
-                        <input type="date" id="statsEnd" class="p-2 border rounded text-sm">
-                         <select id="statsClient" class="p-2 border rounded text-sm"><option value="">All Clients</option></select>
-                         <select id="statsSite" class="p-2 border rounded text-sm"><option value="">All Sites</option></select>
-                         <a href="/api/v1/export" target="_blank" class="btn btn-sm border" id="exportBtn">Export</a>
+            <div>
+                <div class="flex flex-col md:flex-row justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold text-gray-800">Dashboard</h3>
+                    <!-- Export moved to header or keep in filter? User image shows clear button at end. Export can be separate. -->
+                </div>
+
+                <!-- Filter Bar -->
+                <div class="bg-white p-5 rounded-lg shadow-sm mb-6 border border-gray-100">
+                    <div class="flex flex-wrap items-end gap-x-6 gap-y-4">
+                        
+                        <!-- From Date -->
+                        <div class="flex-1 min-w-[150px]">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">From</label>
+                            <input type="date" id="statsStart" class="w-full p-2.5 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors text-sm text-gray-700">
+                        </div>
+
+                        <!-- To Date -->
+                        <div class="flex-1 min-w-[150px]">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">To</label>
+                            <input type="date" id="statsEnd" class="w-full p-2.5 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors text-sm text-gray-700">
+                        </div>
+
+                        <!-- Client -->
+                        <div class="flex-[2] min-w-[200px]">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Client</label>
+                            <select id="statsClient" class="w-full p-2.5 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors text-sm text-gray-700"><option value="">All Clients</option></select>
+                        </div>
+
+                        <!-- Site -->
+                        <div class="flex-[2] min-w-[200px]">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Site</label>
+                            <select id="statsSite" class="w-full p-2.5 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors text-sm text-gray-700"><option value="">All Sites</option></select>
+                        </div>
+                        
+                        <!-- Actions -->
+                        <div class="flex items-center gap-3 ml-auto">
+                            <!-- Export -->
+                             <a href="/api/v1/export" target="_blank" class="p-2.5 text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Export Data">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            </a>
+                            
+                            <!-- Clear Filter -->
+                            <button id="clearStatsFilter" class="p-2.5 bg-red-50 text-red-500 rounded-md hover:bg-red-100 transition-colors shadow-sm border border-red-100" title="Clear Filters">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-filter-x"><path d="M13.013 3H2l8 9.46V19l4 2v-8.54l.9-1.055"/><path d="m22 3-5 5"/><path d="m17 3 5 5"/></svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
@@ -288,7 +363,7 @@ const App = {
                 </div>
                 
                 <!-- Charts Grid -->
-                <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <!-- Daily Trend Chart -->
                     <div class="card flex flex-col h-full">
                         <h4>Daily Cash Flow Trend</h4>
@@ -306,7 +381,7 @@ const App = {
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <!-- Recent Income -->
                     <div class="card">
                         <h4 class="text-success mb-4">Recent Income</h4>
@@ -333,18 +408,20 @@ const App = {
                     <h3>Organizations <span id="orgsTotalCount" class="text-sm text-gray-500 font-normal ml-2"></span></h3>
                     <button class="btn btn-primary" id="addOrgBtn">Add Organization</button>
                 </div>
-                <div id="orgFormContainer" class="hidden mb-4 p-4 border rounded bg-gray-50">
-                    <h4 class="mb-2">New Organization</h4>
-                    <form id="createOrgForm">
-                        <div class="form-group">
-                            <label>Name</label>
-                            <input type="text" name="name" required>
-                        </div>
-                        <div class="flex space-x-4">
-                            <button type="submit" class="btn btn-primary">Save</button>
-                            <button type="button" class="btn" onclick="document.getElementById('orgFormContainer').classList.add('hidden')">Cancel</button>
-                        </div>
-                    </form>
+                <div id="orgFormContainer" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-50 flex">
+                    <div class="bg-white rounded-lg shadow-xl p-6 w-11/12 max-w-lg overflow-y-auto max-h-[90vh]">
+                        <h4 class="text-xl font-bold mb-4">New Organization</h4>
+                        <form id="createOrgForm">
+                            <div class="form-group">
+                                <label>Name</label>
+                                <input type="text" name="name" placeholder="Enter organization name" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
+                            </div>
+                            <div class="flex justify-end space-x-3 mt-4">
+                                <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" onclick="document.getElementById('orgFormContainer').classList.add('hidden')">Cancel</button>
+                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
                 <table id="orgTable">
                     <thead>
@@ -374,7 +451,7 @@ const App = {
                     
                     <div class="form-group">
                         <label>Organization Name</label>
-                        <input type="text" name="name" required>
+                        <input type="text" name="name" placeholder="Enter organization name" required>
                     </div>
                     
                     <div class="form-group">
@@ -395,67 +472,79 @@ const App = {
                     <h3>Users <span id="usersTotalCount" class="text-sm text-gray-500 font-normal ml-2"></span></h3>
                     ${App.hasPermission('users', 'create') ? '<button class="btn btn-primary" id="addUserBtn">Add User</button>' : ''}
                 </div>
-                <div id="userFormContainer" class="hidden mb-4 p-4 border rounded bg-gray-50">
-                    <h4 class="mb-2" id="userFormTitle">New User</h4>
-                    <form id="createUserForm">
-                        <input type="hidden" id="userId">
-                        <div class="form-group">
-                            <label>Username</label>
-                            <input type="text" name="username" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Password</label>
-                            <input type="password" name="password">
-                            <small id="userPasswordHelp" class="text-gray-500 hidden">Leave blank to keep unchanged</small>
-                        </div>
-                        <div class="form-group">
-                            <label>Role</label>
-                            <select name="role" required>
-                                <option value="org_admin">Org Admin</option>
-                                <option value="manager">Manager</option>
-                                <option value="staff">Staff</option>
-                            </select>
-                        </div>
-                        ${App.user.role === 'super_admin' ? `
-                        <div class="form-group">
-                            <label>Organization ID</label>
-                            <input type="number" name="org_id">
-                        </div>` : ''}
-                        
-                        <div class="form-group mt-4">
-                            <label class="block font-bold mb-2">Permissions</label>
-                            <div class="border p-2 rounded max-h-60 overflow-y-auto text-sm">
-                                <table class="w-full">
-                                    <thead>
-                                        <tr class="text-left">
-                                            <th class="pb-2">Resource</th>
-                                            <th class="pb-2 text-center">View</th>
-                                            <th class="pb-2 text-center">Create</th>
-                                            <th class="pb-2 text-center">Edit</th>
-                                            <th class="pb-2 text-center">Delete</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${['clients', 'sites', 'categories', 'transactions', 'users'].map(res => `
-                                            <tr class="border-t">
-                                                <td class="py-2 capitalize">${res}</td>
-                                                <td class="text-center"><input type="checkbox" name="permissions" value="${res}.view"></td>
-                                                <td class="text-center"><input type="checkbox" name="permissions" value="${res}.create"></td>
-                                                <td class="text-center"><input type="checkbox" name="permissions" value="${res}.edit"></td>
-                                                <td class="text-center"><input type="checkbox" name="permissions" value="${res}.delete"></td>
-                                            </tr>
-                                        `).join('')}
-                                    </tbody>
-                                </table>
+                <div id="userFormContainer" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-50 flex">
+                    <div class="bg-white rounded-lg shadow-xl p-6 w-11/12 max-w-lg overflow-y-auto max-h-[90vh]">
+                        <h4 class="text-xl font-bold mb-4" id="userFormTitle">New User</h4>
+                        <form id="createUserForm">
+                            <input type="hidden" id="userId">
+                            <div class="form-group">
+                                <label>Username</label>
+                                <input type="text" name="username" placeholder="Enter username" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
                             </div>
-                            <small class="text-gray-500">If no permissions selected, role defaults apply (usually full access for Managers, limited for Staff).</small>
-                        </div>
+                            <div class="form-group">
+                                <label>Password</label>
+                                <input type="password" name="password" placeholder="Enter password" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
+                                <small id="userPasswordHelp" class="text-gray-500 hidden">Leave blank to keep unchanged</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Role</label>
+                                <select name="role" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
+                                    <option value="org_admin">Org Admin</option>
+                                    <option value="manager">Manager</option>
+                                    <option value="staff">Staff</option>
+                                </select>
+                            </div>
+                            ${App.user.role === 'super_admin' ? `
+                            <div class="form-group">
+                                <label>Organization ID</label>
+                                <input type="number" name="org_id" placeholder="Enter Org ID" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
+                            </div>` : ''}
+                            
+                            <div class="form-group mt-4">
+                                <label class="block font-bold mb-2">Permissions</label>
+                                <div class="border p-2 rounded max-h-60 overflow-y-auto text-sm">
+                                    <div class="hidden md:grid md:grid-cols-5 font-bold mb-2">
+                                        <div>Resource</div>
+                                        <div class="text-center">View</div>
+                                        <div class="text-center">Create</div>
+                                        <div class="text-center">Edit</div>
+                                        <div class="text-center">Delete</div>
+                                    </div>
+                                    <div class="space-y-4 md:space-y-0">
+                                        ${['clients', 'sites', 'categories', 'transactions', 'transactions_income', 'transactions_expense', 'users'].map(res => `
+                                            <div class="border-b pb-4 md:pb-0 md:border-b-0 md:grid md:grid-cols-5 md:py-2 hover:bg-gray-50 items-center">
+                                                <div class="font-medium md:font-normal mb-2 md:mb-0 capitalize text-gray-700">${res.replace('_', ' ')}</div>
+                                                <div class="grid grid-cols-2 gap-2 md:contents">
+                                                    <label class="flex items-center space-x-2 md:justify-center cursor-pointer">
+                                                        <input type="checkbox" name="permissions" value="${res}.view" class="form-checkbox text-blue-600 rounded">
+                                                        <span class="md:hidden text-sm text-gray-600">View</span>
+                                                    </label>
+                                                    <label class="flex items-center space-x-2 md:justify-center cursor-pointer">
+                                                        <input type="checkbox" name="permissions" value="${res}.create" class="form-checkbox text-blue-600 rounded">
+                                                        <span class="md:hidden text-sm text-gray-600">Create</span>
+                                                    </label>
+                                                    <label class="flex items-center space-x-2 md:justify-center cursor-pointer">
+                                                        <input type="checkbox" name="permissions" value="${res}.edit" class="form-checkbox text-blue-600 rounded">
+                                                        <span class="md:hidden text-sm text-gray-600">Edit</span>
+                                                    </label>
+                                                    <label class="flex items-center space-x-2 md:justify-center cursor-pointer">
+                                                        <input type="checkbox" name="permissions" value="${res}.delete" class="form-checkbox text-blue-600 rounded">
+                                                        <span class="md:hidden text-sm text-gray-600">Delete</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                                <small class="text-gray-500">If no permissions selected, role defaults apply.</small>
+                            </div>
 
-                        <div class="flex space-x-4 mt-4">
-                            <button type="submit" class="btn btn-primary" id="userSubmitBtn">Create</button>
-                            <button type="button" class="btn" onclick="document.getElementById('userFormContainer').classList.add('hidden')">Cancel</button>
-                        </div>
-                    </form>
+                            <div class="flex justify-end space-x-3 mt-4">
+                                <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" onclick="document.getElementById('userFormContainer').classList.add('hidden')">Cancel</button>
+                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" id="userSubmitBtn">Create</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
                 <table id="userTable">
                     <thead>
@@ -472,22 +561,24 @@ const App = {
                     <h3>Clients <span id="clientsTotalCount" class="text-sm text-gray-500 font-normal ml-2"></span></h3>
                     ${App.hasPermission('clients', 'create') ? '<button class="btn btn-primary" id="addClientBtn">Add Client</button>' : ''}
                 </div>
-                <div id="clientFormContainer" class="hidden mb-4 p-4 border rounded bg-gray-50">
-                    <h4 class="mb-2">New Client</h4>
-                    <form id="createClientForm">
-                        <div class="form-group">
-                            <label>Name</label>
-                            <input type="text" name="name" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Parent Client (Optional)</label>
-                            <select name="parent_client_id" id="parentClientSelect"><option value="">None</option></select>
-                        </div>
-                        <div class="flex space-x-4">
-                            <button type="submit" class="btn btn-primary">Save</button>
-                            <button type="button" class="btn" onclick="document.getElementById('clientFormContainer').classList.add('hidden')">Cancel</button>
-                        </div>
-                    </form>
+                <div id="clientFormContainer" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-50 flex">
+                    <div class="bg-white rounded-lg shadow-xl p-6 w-11/12 max-w-lg overflow-y-auto max-h-[90vh]">
+                        <h4 class="text-xl font-bold mb-4">New Client</h4>
+                        <form id="createClientForm">
+                            <div class="form-group">
+                                <label>Name</label>
+                                <input type="text" name="name" placeholder="Enter client name" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
+                            </div>
+                            <div class="form-group">
+                                <label>Parent Client (Optional)</label>
+                                <select name="parent_client_id" id="parentClientSelect" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors"><option value="">None</option></select>
+                            </div>
+                            <div class="flex justify-end space-x-3 mt-4">
+                                <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" onclick="document.getElementById('clientFormContainer').classList.add('hidden')">Cancel</button>
+                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
                 <table id="clientTable">
                     <thead>
@@ -507,51 +598,53 @@ const App = {
                 
                 <!-- Filters -->
                 <div class="flex space-x-4 mb-4 bg-gray-50 p-3 rounded">
-                    <input type="text" id="siteSearch" placeholder="Search Sites..." class="p-2 border rounded flex-grow">
-                    <select id="siteFilterClient" class="p-2 border rounded"><option value="">All Clients</option></select>
-                    <select id="siteFilterStatus" class="p-2 border rounded">
+                    <input type="text" id="siteSearch" placeholder="Search Sites..." class="p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors flex-grow">
+                    <select id="siteFilterClient" class="p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors"><option value="">All Clients</option></select>
+                    <select id="siteFilterStatus" class="p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
                         <option value="">All Status</option>
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
                     </select>
                 </div>
 
-                <div id="siteFormContainer" class="hidden mb-4 p-4 border rounded bg-gray-50">
-                    <h4 class="mb-2" id="siteFormTitle">New Site</h4>
-                    <form id="createSiteForm">
-                        <input type="hidden" name="id" id="siteId">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="form-group">
-                                <label>Client</label>
-                                <select name="client_id" id="siteClientSelect" required class="w-full p-2 border rounded"><option value="">Select Client</option></select>
+                <div id="siteFormContainer" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-50 flex">
+                    <div class="bg-white rounded-lg shadow-xl p-6 w-11/12 max-w-lg overflow-y-auto max-h-[90vh]">
+                        <h4 class="text-xl font-bold mb-4" id="siteFormTitle">New Site</h4>
+                        <form id="createSiteForm">
+                            <input type="hidden" name="id" id="siteId">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="form-group">
+                                    <label>Client</label>
+                                    <select name="client_id" id="siteClientSelect" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors"><option value="">Select Client</option></select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Name</label>
+                                    <input type="text" name="name" placeholder="Enter site name" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label>Name</label>
-                                <input type="text" name="name" required class="w-full p-2 border rounded">
+                            <div class="grid grid-cols-2 gap-4 mt-2">
+                                 <div class="form-group">
+                                    <label>Location</label>
+                                    <input type="text" name="location" placeholder="Enter location" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
+                                </div>
+                                <div class="form-group">
+                                    <label>Status</label>
+                                    <select name="status" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
+                                        <option value="active">Active</option>
+                                        <option value="inactive">Inactive</option>
+                                    </select>
+                                </div>
                             </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4 mt-2">
-                             <div class="form-group">
-                                <label>Location</label>
-                                <input type="text" name="location" class="w-full p-2 border rounded">
+                            <div class="form-group mt-2">
+                                <label>Estimated Cost (₹)</label>
+                                <input type="number" name="estimated_cost" step="0.01" placeholder="0.00" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
                             </div>
-                            <div class="form-group">
-                                <label>Status</label>
-                                <select name="status" class="w-full p-2 border rounded">
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
-                                </select>
+                            <div class="flex justify-end space-x-3 mt-4">
+                                <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" onclick="document.getElementById('siteFormContainer').classList.add('hidden')">Cancel</button>
+                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" id="siteSubmitBtn">Save</button>
                             </div>
-                        </div>
-                        <div class="form-group mt-2">
-                            <label>Estimated Cost (₹)</label>
-                            <input type="number" name="estimated_cost" step="0.01" placeholder="0.00" class="w-full p-2 border rounded">
-                        </div>
-                        <div class="flex space-x-4 mt-4">
-                            <button type="submit" class="btn btn-primary" id="siteSubmitBtn">Save</button>
-                            <button type="button" class="btn" onclick="document.getElementById('siteFormContainer').classList.add('hidden')">Cancel</button>
-                        </div>
-                    </form>
+                        </form>
+                    </div>
                 </div>
                 
                 <div id="sitesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 h-[600px] overflow-y-auto pr-2">
@@ -566,45 +659,47 @@ const App = {
                     <h3>Categories</h3>
                     ${App.hasPermission('categories', 'create') ? '<button class="btn btn-primary" id="addCategoryBtn">Add Category</button>' : ''}
                 </div>
-                <div id="categoryFormContainer" class="hidden mb-4 p-4 border rounded bg-gray-50">
-                    <h4 class="mb-2" id="catFormTitle">New Category</h4>
-                    <form id="createCategoryForm">
-                        <input type="hidden" name="id" id="catId">
-                        <div class="form-group">
-                            <label>Name</label>
-                            <input type="text" name="name" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Type (Optional)</label>
-                            <select name="type">
-                                <option value="">Select Type (Optional)</option>
-                                <option value="income">Income</option>
-                                <option value="expense">Expense</option>
-                            </select>
-                            <small class="text-gray-500 block mt-1">If selected, will auto-fill transaction type.</small>
-                        </div>
-                        <div class="flex space-x-4">
-                            <button type="submit" class="btn btn-primary" id="catSubmitBtn">Save</button>
-                            <button type="button" class="btn" onclick="document.getElementById('categoryFormContainer').classList.add('hidden')">Cancel</button>
-                        </div>
-                    </form>
+                <div id="categoryFormContainer" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-50 flex">
+                    <div class="bg-white rounded-lg shadow-xl p-6 w-11/12 max-w-lg overflow-y-auto max-h-[90vh]">
+                        <h4 class="text-xl font-bold mb-4" id="catFormTitle">New Category</h4>
+                        <form id="createCategoryForm">
+                            <input type="hidden" name="id" id="catId">
+                            <div class="form-group">
+                                <label>Name</label>
+                                <input type="text" name="name" placeholder="Enter category name" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
+                            </div>
+                            <div class="form-group">
+                                <label>Type (Optional)</label>
+                                <select name="type" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
+                                    <option value="">Select Type (Optional)</option>
+                                    <option value="income">Income</option>
+                                    <option value="expense">Expense</option>
+                                </select>
+                                <small class="text-gray-500 block mt-1">If selected, will auto-fill transaction type.</small>
+                            </div>
+                            <div class="flex justify-end space-x-3 mt-4">
+                                <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" onclick="document.getElementById('categoryFormContainer').classList.add('hidden')">Cancel</button>
+                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" id="catSubmitBtn">Save</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
                 <div id="categoriesList">Loading...</div>
             
                 <!-- Field Modal -->
-                <div id="fieldModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                    <div class="bg-white p-6 rounded w-96">
-                        <h4 class="mb-4" id="fieldModalTitle">Add Field</h4>
+                <div id="fieldModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-50 flex">
+                    <div class="bg-white rounded-lg shadow-xl p-6 w-11/12 max-w-sm">
+                        <h4 class="text-xl font-bold mb-4" id="fieldModalTitle">Add Field</h4>
                         <form id="addFieldForm">
                             <input type="hidden" name="category_id" id="fieldModalCategoryId">
                             <input type="hidden" name="field_id" id="fieldModalFieldId">
                             <div class="form-group">
                                 <label>Field Name</label>
-                                <input type="text" name="field_name" id="fieldModalName" required>
+                                <input type="text" name="field_name" id="fieldModalName" placeholder="Enter field name" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
                             </div>
                             <div class="form-group">
                                 <label>Input Type</label>
-                                <select name="field_type" id="fieldModalType" required>
+                                <select name="field_type" id="fieldModalType" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
                                     <option value="text">Text</option>
                                     <option value="number">Number</option>
                                     <option value="date">Date</option>
@@ -614,14 +709,14 @@ const App = {
                             </div>
                             <div class="form-group">
                                 <label>Required?</label>
-                                <select name="is_required" id="fieldModalRequired">
+                                <select name="is_required" id="fieldModalRequired" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
                                     <option value="0">No</option>
                                     <option value="1">Yes</option>
                                 </select>
                             </div>
-                            <div class="flex space-x-4 mt-4">
-                                <button type="submit" class="btn btn-primary" id="fieldModalSubmitBtn">Add</button>
-                                <button type="button" class="btn" onclick="document.getElementById('fieldModal').classList.add('hidden')">Close</button>
+                            <div class="flex justify-end space-x-3 mt-4">
+                                <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" onclick="document.getElementById('fieldModal').classList.add('hidden')">Close</button>
+                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" id="fieldModalSubmitBtn">Add</button>
                             </div>
                         </form>
                     </div>
@@ -644,66 +739,71 @@ const App = {
                 <!-- Filters -->
                 <div class="flex space-x-4 mb-4">
                     <!-- Type Filter Hidden as it is implied by page -->
-                    <input type="date" id="filterStart" class="p-2 border rounded">
-                    <input type="date" id="filterEnd" class="p-2 border rounded">
+                    <input type="date" id="filterStart" class="p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
+                    <input type="date" id="filterEnd" class="p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
                     <button id="applyFiltersBtn" class="btn btn-sm">Filter</button>
-                    ${mode === 'all' ? `<select id="filterType" class="p-2 border rounded"><option value="">All Types</option><option value="income">Income</option><option value="expense">Expense</option></select>` : ''}
+                    ${mode === 'all' ? `<select id="filterType" class="p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors"><option value="">All Types</option><option value="income">Income</option><option value="expense">Expense</option></select>` : ''}
                 </div>
 
-                <div id="txFormContainer" class="hidden mb-4 p-4 border rounded bg-gray-50">
-                    <h4 class="mb-2">New ${mode === 'income' ? 'Income' : 'Expense'}</h4>
-                    <form id="createTxForm" data-mode="${mode}">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="form-group">
-                                <label>Date</label>
-                                <input type="date" name="date" required value="${new Date().toISOString().split('T')[0]}">
+                <div id="txFormContainer" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-50 flex">
+                    <div class="bg-white rounded-lg shadow-xl p-6 w-11/12 max-w-lg overflow-y-auto max-h-[90vh]">
+                        <h4 class="text-xl font-bold mb-4">New ${mode === 'income' ? 'Income' : 'Expense'}</h4>
+                        <form id="createTxForm" data-mode="${mode}">
+                            <input type="hidden" name="type" value="${mode}">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="form-group">
+                                    <label>Date</label>
+                                    <input type="date" name="date" required value="${new Date().toISOString().split('T')[0]}" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
+                                </div>
+                                <div class="form-group">
+                                    <label>Amount (₹)</label>
+                                    <input type="number" name="amount" step="0.01" placeholder="0.00" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label>Amount</label>
-                                <input type="number" step="0.01" name="amount" required>
+                            
+                            <div class="grid grid-cols-2 gap-4 mt-2">
+                                 <div class="form-group">
+                                    <label>Category</label>
+                                    <select name="category_id" id="txCategorySelect" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors"><option>Loading...</option></select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Client (Optional)</label>
+                                    <select name="client_id" id="txClientSelect" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors"><option>Loading...</option></select>
+                                </div>
                             </div>
-                        </div>
-                        
-                        <!-- Hidden Type Field -->
-                        <input type="hidden" name="type" value="${mode}">
-                        
-                        <div class="form-group mt-4">
-                            <label>Category</label>
-                            <select name="category_id" id="txCategorySelect" required class="w-full p-2 border rounded"><option value="">Select Category</option></select>
-                        </div>
-                             
-                        <div class="grid grid-cols-2 gap-4 mt-4">
-                             <div class="form-group">
-                                <label>Client</label>
-                                <select name="client_id" id="txClientSelect" class="w-full p-2 border rounded"><option value="">None</option></select>
-                             </div>
-                             <div class="form-group">
-                                <label>Site</label>
-                                <select name="site_id" id="txSiteSelect" class="w-full p-2 border rounded"><option value="">Select Client First</option></select>
-                             </div>
-                        </div>
+                            
+                            <div class="form-group mt-2">
+                                <label>Site (Optional)</label>
+                                <select name="site_id" id="txSiteSelect" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors"><option value="">Select Client First</option></select>
+                            </div>
 
-                        <div id="txCustomFields" class="border-t pt-4 mt-4 hidden">
-                             <!-- Dynamic Fields Render Here -->
-                        </div>
-                             
-                        <div class="form-group mt-4">
-                            <label>Description (Details)</label>
-                            <textarea name="description" rows="2" class="w-full p-2 border rounded"></textarea>
-                        </div>
+                             <div class="form-group mt-2">
+                                <label>Description</label>
+                                <input type="text" name="description" placeholder="Enter description" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
+                            </div>
 
-                        <div class="flex space-x-4 mt-4">
-                            <button type="submit" class="btn btn-primary">Save</button>
-                            <button type="button" class="btn" onclick="document.getElementById('txFormContainer').classList.add('hidden')">Cancel</button>
-                        </div>
-                    </form>
+                            <div id="txCustomFields" class="mt-2 hidden border-t pt-2"></div>
+                            
+                            <div class="flex justify-end space-x-3 mt-4">
+                                <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" onclick="document.getElementById('txFormContainer').classList.add('hidden')">Cancel</button>
+                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
-                
+
                 <table id="txTable">
                     <thead>
-                        <tr><th>Date</th><th>Category</th><th>Details</th><th>Amount</th><th>Client/Site</th></tr>
+                        <tr>
+                            <th>Date</th>
+                            <th>Category</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                            <th>Reference</th>
+                            <th>Actions</th>
+                        </tr>
                     </thead>
-                    <tbody id="txTableBody"><tr><td colspan="5">Loading...</td></tr></tbody>
+                    <tbody id="txTableBody"><tr><td colspan="6">Loading...</td></tr></tbody>
                 </table>
             </div>
     `,
@@ -713,14 +813,22 @@ const App = {
              // Load Data for Filters
              let sitesData = [];
              try {
-                 const [clients, sites] = await Promise.all([
-                     api.get('/clients'),
-                     api.get('/sites')
+                 const [clientsRes, sitesRes] = await Promise.all([
+                     api.get('/clients?limit=1000'),
+                     api.get('/sites?limit=1000')
                  ]);
+                 // API returns { data: [...], total: ... }
+                 const clients = clientsRes.data || [];
+                 const sites = sitesRes.data || [];
                  sitesData = sites;
                  
                  document.getElementById('statsClient').innerHTML = '<option value="">All Clients</option>' + clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
                  document.getElementById('statsSite').innerHTML = '<option value="">All Sites</option>' + sites.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                 
+                 // Initialize Autocomplete
+                 window.clientAc = new Autocomplete('#statsClient');
+                 window.siteAc = new Autocomplete('#statsSite');
+
              } catch(e) { console.error('Failed to load filter data', e); }
 
              const loadStats = async () => {
@@ -821,9 +929,9 @@ const App = {
                             <div class="flex justify-between items-center p-2 rounded hover:bg-gray-50 border-b border-dashed last:border-0">
                                 <div>
                                     <div class="font-medium text-sm">${t.description || t.category_name}</div>
-                                    <div class="text-xs text-gray-400">${t.transaction_date}</div>
+                                    <div class="text-xs text-gray-400">${Formatters.date(t.transaction_date)}</div>
                                 </div>
-                                <div class="font-bold text-sm ${colorClass}">₹${parseFloat(t.amount).toLocaleString('en-IN')}</div>
+                                <div class="font-bold text-sm ${colorClass}">${Formatters.amount(t.amount)}</div>
                             </div>
                          `).join('');
                      };
@@ -833,38 +941,89 @@ const App = {
 
 
 
-                     // Update Export Link
-                     document.getElementById('exportBtn').href = `/api/v1/export?${query}`;
+                     document.querySelector('a[href^="/api/v1/export"]').href = `/api/v1/export?${query}`; // Updated selector as ID removed from link? Actually ID might be gone or still on <a>?
+                     // I will verify selector or just use querySelector
                      
                  } catch (e) {
                      console.error(e);
                      alert('Dashboard Load Failed: ' + e.message);
                  }
              };
-             
-             // Init Dates: First day of current month to Today
-             const today = new Date();
-             const y = today.getFullYear();
-             const m = String(today.getMonth() + 1).padStart(2, '0');
-             const d = String(today.getDate()).padStart(2, '0');
-             
-             document.getElementById('statsStart').value = `${y}-${m}-01`;
-             document.getElementById('statsEnd').value = `${y}-${m}-${d}`;
 
+             // Init Dates: Last 1 Year to Today
+             const today = new Date();
+             const lastYear = new Date();
+             lastYear.setFullYear(today.getFullYear() - 1);
+             
+             document.getElementById('statsStart').value = lastYear.toISOString().split('T')[0];
+             document.getElementById('statsEnd').value = today.toISOString().split('T')[0];
+
+             // Initial Load
              loadStats();
+
+             // Listeners
              document.getElementById('statsStart').onchange = loadStats;
              document.getElementById('statsEnd').onchange = loadStats;
-             document.getElementById('statsClient').onchange = (e) => {
-                 const cid = e.target.value;
-                 const siteSelect = document.getElementById('statsSite');
-                 if(!cid) {
-                     siteSelect.innerHTML = '<option value="">All Sites</option>' + sitesData.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-                 } else {
-                     const filtered = sitesData.filter(s => s.client_id == cid);
-                     siteSelect.innerHTML = '<option value="">All Sites</option>' + filtered.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+             document.getElementById('statsClient').onchange = () => {
+                 // Filter sites based on client?
+                 // Simple approach: show all sites, or filter them
+                 const val = document.getElementById('statsClient').value;
+                 if(val) {
+                     // Filter valid sites
+                     // Re-populate sites?
+                     // If we want to be fancy, yes. For now just reload stats.
+                     // But user might want to select site.
                  }
                  loadStats();
              };
+             document.getElementById('statsSite').onchange = loadStats;
+
+             // Clear Filter
+             const clearBtn = document.getElementById('clearStatsFilter');
+             if(clearBtn) {
+                 clearBtn.onclick = () => {
+                     // Reset Dates to Default (1 Year)
+                     const today = new Date();
+                     const lastYear = new Date();
+                     lastYear.setFullYear(today.getFullYear() - 1);
+                     
+                     document.getElementById('statsStart').value = lastYear.toISOString().split('T')[0];
+                     document.getElementById('statsEnd').value = today.toISOString().split('T')[0];
+                     
+                     // Reset Dropdowns
+                     const clientSelect = document.getElementById('statsClient');
+                     const siteSelect = document.getElementById('statsSite');
+                     clientSelect.value = "";
+                     siteSelect.value = "";
+
+                     // Reset Autocomplete
+                     // We must clear the input value manually so validateSelection doesn't revert to the old label
+                     if(window.clientAc) {
+                         window.clientAc.input.value = "";
+                         window.clientAc.validateSelection();
+                     }
+                     if(window.siteAc) {
+                         window.siteAc.input.value = "";
+                         window.siteAc.validateSelection();
+                     }
+
+                     loadStats();
+                 };
+             }
+             document.getElementById('statsClient').onchange = (e) => {
+                  const cid = e.target.value;
+                  const siteSelect = document.getElementById('statsSite');
+                  if(!cid) {
+                      siteSelect.innerHTML = '<option value="">All Sites</option>' + sitesData.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                  } else {
+                      const filtered = sitesData.filter(s => s.client_id == cid);
+                      siteSelect.innerHTML = '<option value="">All Sites</option>' + filtered.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                  }
+                  // Update Autocomplete options
+                  if(window.siteAc) window.siteAc.update();
+                  
+                  loadStats();
+              };
              document.getElementById('statsSite').onchange = loadStats;
          },
         orgs: async () => {
@@ -933,13 +1092,14 @@ const App = {
              };
 
              App.pageLogic.orgs_delete = async (id) => {
-                  if (confirm('Are you sure you want to delete?')) {
+                  if (await App.confirm('Are you sure you want to delete this organization?', 'Delete Organization')) {
                       try {
                           await api.delete(`/orgs/${id}`);
+                          App.notify('Organization deleted successfully', 'success');
                           // Reload
                           App.pagination['orgs'] = null;
                           loadOrgs();
-                      } catch (e) { alert(e.message); }
+                      } catch (e) { App.notify(e.message, 'error'); }
                   }
              };
 
@@ -954,25 +1114,26 @@ const App = {
 
              document.getElementById('createOrgForm').onsubmit = async (e) => {
                  e.preventDefault();
+                 const formData = new FormData(e.target);
                  const form = e.target;
-                 const mode = form.dataset.mode;
-                 const id = form.dataset.id;
-                 const data = Object.fromEntries(new FormData(form));
+                 const mode = form.dataset.mode || 'create';
                  
                  try {
-                     if (mode === 'edit' && id) {
-                         await api.put(`/orgs/${id}`, data);
+                     const data = Object.fromEntries(formData);
+                     if (!data.status) data.status = 'active'; 
+
+                     if (mode === 'edit') {
+                         await api.put(`/orgs/${form.dataset.id}`, data);
+                         App.notify('Organization updated successfully', 'success');
                      } else {
                          await api.post('/orgs', data);
+                         App.notify('Organization created successfully', 'success');
                      }
-                     form.reset();
+                     e.target.reset();
                      document.getElementById('orgFormContainer').classList.add('hidden');
-                     
-                     // RELOAD LIST
-                     App.pagination['orgs'] = null;
                      loadOrgs();
                  } catch (err) {
-                     alert(err.message || 'Operation failed');
+                     App.notify(err.message, 'error');
                  }
              };
              
@@ -995,8 +1156,8 @@ const App = {
                      document.getElementById('removeLogoBtn').classList.remove('hidden');
                  }
                  
-                 document.getElementById('removeLogoBtn').onclick = () => {
-                     if(confirm('Remove this logo?')) {
+                 document.getElementById('removeLogoBtn').onclick = async () => {
+                     if(await App.confirm('Remove this logo?', 'Remove Logo')) {
                          document.getElementById('currentLogo').classList.add('hidden');
                          document.getElementById('noLogoText').classList.remove('hidden');
                          document.getElementById('removeLogoBtn').classList.add('hidden');
@@ -1062,8 +1223,8 @@ const App = {
                  // We can't easily get org_id or permissions from just the table row if it's not displayed or complex.
                  // Ideally we fetch the user details. But for now let's rely on stored data or just minimal edit?
                  // Let's implement fetchSingle for full edit capability to be safe.
-                 api.get(`/users?limit=1000`).then(users => { // Quick hack: fetch all to find one to edit, or implement /users/:id
-                     const user = users.find(u => u.id == id);
+                 api.get(`/users?id=${id}`).then(res => { 
+                     const user = (res.data && res.data.length > 0) ? res.data[0] : null;
                      if(user) {
                          if (form.elements['org_id']) form.elements['org_id'].value = user.org_id || '';
                          
@@ -1089,10 +1250,13 @@ const App = {
              
              // Bind to Page Logic for generic handler
              App.pageLogic.users_delete = async (id) => {
-                 if(confirm('Delete user?')) {
-                     await api.delete(`/users/${id}`);
-                     App.pagination['users'] = null;
-                     loadUsers();
+                 if(await App.confirm('Delete user?', 'Delete User')) {
+                     try {
+                         await api.delete(`/users/${id}`);
+                         App.notify('User deleted', 'success');
+                         App.pagination['users'] = null;
+                         loadUsers();
+                     } catch(e) { App.notify(e.message, 'error'); }
                  }
              };
 
@@ -1125,13 +1289,18 @@ const App = {
 
                  const id = document.getElementById('userId').value;
                  try {
-                     if(id) await api.put(`/users/${id}`, data);
-                     else await api.post('/users', data);
+                     if(id) { 
+                         await api.put(`/users/${id}`, data);
+                         App.notify('User updated', 'success');
+                     } else { 
+                         await api.post('/users', data);
+                         App.notify('User created', 'success');
+                     }
                      
                      document.getElementById('userFormContainer').classList.add('hidden');
                      App.pagination['users'] = null;
                      loadUsers();
-                 } catch(err) { alert(err.message); }
+                 } catch(err) { App.notify(err.message, 'error'); }
              };
              
              // Bind Events override
@@ -1185,8 +1354,8 @@ const App = {
                   // For parent ID, we might need to find it from the name or fetched data.
                   // Ideally the row button or data carries more info, or we re-fetch.
                   // Simple approach: Fetch single client details.
-                  api.get(`/clients?limit=1000`).then(existing => {
-                      const client = existing.find(c => c.id == id);
+                  api.get(`/clients?id=${id}`).then(res => {
+                      const client = (res.data && res.data.length > 0) ? res.data[0] : null;
                       if(client) form.parent_client_id.value = client.parent_client_id || '';
                   });
                   
@@ -1197,10 +1366,13 @@ const App = {
              };
              
              App.pageLogic.clients_delete = async (id) => {
-                 if(confirm('Delete client?')) {
-                     await api.delete(`/clients/${id}`);
-                     App.pagination['clients'] = null;
-                     loadClients();
+                 if(await App.confirm('Delete client?', 'Delete Client')) {
+                     try {
+                         await api.delete(`/clients/${id}`);
+                         App.notify('Client deleted', 'success');
+                         App.pagination['clients'] = null;
+                         loadClients();
+                     } catch(e) { App.notify(e.message, 'error'); }
                  }
              };
              
@@ -1249,13 +1421,18 @@ const App = {
                  const id = e.target.dataset.id;
                  const mode = e.target.dataset.mode;
                  try {
-                     if(mode === 'edit' && id) await api.put(`/clients/${id}`, data);
-                     else await api.post('/clients', data);
+                     if(mode === 'edit' && id) {
+                         await api.put(`/clients/${id}`, data);
+                         App.notify('Client updated', 'success');
+                     } else {
+                         await api.post('/clients', data);
+                         App.notify('Client created', 'success');
+                     }
                      
                      document.getElementById('clientFormContainer').classList.add('hidden');
                      App.pagination['clients'] = null;
                      loadClients();
-                 } catch(err) { alert(err.message); }
+                 } catch(err) { App.notify(err.message, 'error'); }
              };
         },
         
@@ -1379,9 +1556,12 @@ const App = {
             };
             
             App.pageLogic.sites_delete = async (id) => {
-                if(confirm('Delete site?')) {
-                    await api.delete(`/sites/${id}`);
-                    loadSites(true);
+                if(await App.confirm('Delete site?', 'Delete Site')) {
+                    try {
+                        await api.delete(`/sites/${id}`);
+                        App.notify('Site deleted', 'success');
+                        loadSites(true);
+                    } catch(e) { App.notify(e.message, 'error'); }
                 }
             };
             
@@ -1413,13 +1593,15 @@ const App = {
                     const data = Object.fromEntries(new FormData(form));
                     if (mode === 'edit') {
                         await api.put(`/sites/${id}`, data);
+                        App.notify('Site updated', 'success');
                     } else {
                         await api.post('/sites', data);
+                        App.notify('Site created', 'success');
                     }
                     e.target.reset();
                     document.getElementById('siteFormContainer').classList.add('hidden');
                     loadSites(true);
-                } catch (err) { alert(err.message); }
+                } catch (err) { App.notify(err.message, 'error'); }
             };
         },
         
@@ -1495,11 +1677,12 @@ const App = {
                     });
                     document.querySelectorAll('.delete-field-btn').forEach(btn => {
                         btn.onclick = async () => {
-                            if(confirm('Delete this field?')) {
+                            if(await App.confirm('Delete this field?', 'Delete Field')) {
                                 try {
                                     await api.delete(`/fields/${btn.dataset.id}`);
+                                    App.notify('Field deleted', 'success');
                                     loadCategories();
-                                } catch(e) { alert(e.message); }
+                                } catch(e) { App.notify(e.message, 'error'); }
                             }
                         };
                     });
@@ -1520,11 +1703,12 @@ const App = {
 
                     document.querySelectorAll('.delete-cat-btn').forEach(btn => {
                         btn.onclick = async () => {
-                             if(confirm('Are you sure you want to delete this category?')) {
+                             if(await App.confirm('Are you sure you want to delete this category?', 'Delete Category')) {
                                  try {
                                      await api.delete(`/categories/${btn.dataset.id}`);
+                                     App.notify('Category deleted', 'success');
                                      loadCategories();
-                                 } catch(e) { alert(e.message); }
+                                 } catch(e) { App.notify(e.message, 'error'); }
                              }
                         };
                     });
@@ -1552,13 +1736,15 @@ const App = {
                     const data = Object.fromEntries(new FormData(form));
                     if (mode === 'edit') {
                         await api.put(`/categories/${id}`, data);
+                        App.notify('Category updated', 'success');
                     } else {
                         await api.post('/categories', data);
+                        App.notify('Category created', 'success');
                     }
                     e.target.reset();
                     document.getElementById('categoryFormContainer').classList.add('hidden');
                     loadCategories();
-                } catch (err) { alert(err.message); }
+                } catch (err) { App.notify(err.message, 'error'); }
             };
             
             document.getElementById('addFieldForm').onsubmit = async (e) => {
@@ -1573,13 +1759,15 @@ const App = {
                 try {
                     if (mode === 'edit') {
                         await api.put(`/fields/${fieldId}`, data);
+                        App.notify('Field updated', 'success');
                     } else {
                         await api.post(`/categories/${catId}/fields`, data);
+                        App.notify('Field added', 'success');
                     }
                     e.target.reset();
                     document.getElementById('fieldModal').classList.add('hidden');
                     loadCategories();
-                } catch (err) { alert(err.message); }
+                } catch (err) { App.notify(err.message, 'error'); }
             };
         },
 
@@ -1595,54 +1783,56 @@ const App = {
                 </div>
                 
                 <div class="flex space-x-2 mb-4 bg-gray-50 p-3 rounded">
-                    <input type="date" id="filterStart" class="p-2 border rounded">
-                    <input type="date" id="filterEnd" class="p-2 border rounded">
+                    <input type="date" id="filterStart" class="p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
+                    <input type="date" id="filterEnd" class="p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
                     <button id="applyFiltersBtn" class="btn btn-secondary">Filter</button>
                 </div>
                 
-                <div id="txFormContainer" class="hidden mb-4 p-4 border rounded bg-gray-50">
-                    <h4 class="mb-2">New Transaction</h4>
-                    <form id="createTxForm">
-                        <input type="hidden" name="type" value="${mode}">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="form-group">
-                                <label>Date</label>
-                                <input type="date" name="date" required class="w-full p-2 border rounded">
+                <div id="txFormContainer" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-50 flex">
+                    <div class="bg-white rounded-lg shadow-xl p-6 w-11/12 max-w-lg overflow-y-auto max-h-[90vh]">
+                        <h4 class="text-xl font-bold mb-4">New Transaction</h4>
+                        <form id="createTxForm">
+                            <input type="hidden" name="type" value="${mode}">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="form-group">
+                                    <label>Date</label>
+                                    <input type="date" name="date" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
+                                </div>
+                                <div class="form-group">
+                                    <label>Amount (₹)</label>
+                                    <input type="number" name="amount" step="0.01" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label>Amount (₹)</label>
-                                <input type="number" name="amount" step="0.01" required class="w-full p-2 border rounded">
+                            
+                            <div class="grid grid-cols-2 gap-4 mt-2">
+                                 <div class="form-group">
+                                    <label>Category</label>
+                                    <select name="category_id" id="txCategorySelect" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors"><option>Loading...</option></select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Client</label>
+                                    <select name="client_id" id="txClientSelect" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors"><option>Loading...</option></select>
+                                </div>
                             </div>
-                        </div>
-                        
-                        <div class="grid grid-cols-2 gap-4 mt-2">
-                             <div class="form-group">
-                                <label>Category</label>
-                                <select name="category_id" id="txCategorySelect" required class="w-full p-2 border rounded"><option>Loading...</option></select>
+                            
+                            <div class="form-group mt-2">
+                                <label>Site</label>
+                                <select name="site_id" id="txSiteSelect" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors"><option value="">Select Client First</option></select>
                             </div>
-                            <div class="form-group">
-                                <label>Client (Optional)</label>
-                                <select name="client_id" id="txClientSelect" class="w-full p-2 border rounded"><option>Loading...</option></select>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group mt-2">
-                            <label>Site (Optional)</label>
-                            <select name="site_id" id="txSiteSelect" class="w-full p-2 border rounded"><option value="">Select Client First</option></select>
-                        </div>
 
-                         <div class="form-group mt-2">
-                            <label>Description</label>
-                            <input type="text" name="description" class="w-full p-2 border rounded">
-                        </div>
+                             <div class="form-group mt-2">
+                                <label>Description</label>
+                                <input type="text" name="description" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors">
+                            </div>
 
-                        <div id="txCustomFields" class="mt-2 hidden border-t pt-2"></div>
-                        
-                        <div class="flex space-x-4 mt-4">
-                            <button type="submit" class="btn btn-primary">Save</button>
-                            <button type="button" class="btn" onclick="document.getElementById('txFormContainer').classList.add('hidden')">Cancel</button>
-                        </div>
-                    </form>
+                            <div id="txCustomFields" class="mt-2 hidden border-t pt-2"></div>
+                            
+                            <div class="flex justify-end space-x-4 mt-4">
+                                <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 transition-colors" onclick="document.getElementById('txFormContainer').classList.add('hidden')">Cancel</button>
+                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">Save</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
 
                 <table id="txTable">
@@ -1669,14 +1859,14 @@ const App = {
             
             const renderTxRow = (t) => `
                 <tr>
-                    <td data-label="Date">${t.transaction_date}</td>
+                    <td data-label="Date">${Formatters.date(t.transaction_date)}</td>
                     <td data-label="Category">${t.category_name}</td>
                     <td data-label="Description">
                         ${t.description || ''}
                         ${t.custom_data ? '<br><small class="text-gray-500">' + Object.entries(JSON.parse(t.custom_data || '{}')).map(([k,v]) => `${k}: ${v}`).join(', ') + '</small>' : ''}
                     </td>
                     <td data-label="Amount" class="font-bold ${t.transaction_type === 'income' ? 'text-success' : 'text-danger'}">
-                        ${t.transaction_type === 'income' ? '+' : '-'}₹${parseFloat(t.amount).toLocaleString('en-IN')}
+                        ${t.transaction_type === 'income' ? '+' : '-'} ${Formatters.amount(t.amount)}
                     </td>
                     <td data-label="Reference">
                         ${t.client_name ? `Client: ${t.client_name}` : ''}
@@ -1746,15 +1936,13 @@ const App = {
                      // For now, let's iterate `App.pagination['transactions'].data`? `loadPaginated` doesn't expose data publicly easily yet unless we pushed it.
                      // Let's modify logic to fetch single if needed.
                      
-                     // Quick fix: Add get-by-id logic using current API if possible? 
-                     // I will assume I can update backend or use existing.
-                     // Let's update Controller to support `id` filter?
-                     // Or, just for this task, I will use `view_content`?
-                     // I'll fetch `/transactions?limit=1000&type=` + mode and find it. Not efficient but works for now.
-                     
-                     const allTxs = await api.get(`/transactions?limit=1000&type=${mode}`); 
-                     const tx = allTxs.find(t => t.id == id);
-                     if(!tx) return;
+                     const res = await api.get(`/transactions?id=${id}`);
+                     const tx = (res.data && res.data.length > 0) ? res.data[0] : null;
+
+                     if(!tx) {
+                         App.notify('Transaction not found', 'error');
+                         return;
+                     }
 
                      const form = document.getElementById('createTxForm');
                      document.querySelector('#txFormContainer h4').innerText = 'Edit ' + (mode === 'income' ? 'Income' : 'Expense');
@@ -1792,18 +1980,21 @@ const App = {
             };
             
             App.pageLogic.transactions_delete = async (id) => {
-                if(confirm('Delete transaction?')) {
-                    await api.delete(`/transactions/${id}`);
-                    App.pagination['transactions'] = null;
-                    document.getElementById('txTableBody').innerHTML = '';
-                    loadTx();
+                if(await App.confirm('Delete transaction?', 'Delete Transaction')) {
+                    try {
+                        await api.delete(`/transactions/${id}`);
+                        App.notify('Transaction deleted', 'success');
+                        App.pagination['transactions'] = null;
+                        document.getElementById('txTableBody').innerHTML = '';
+                        loadTx();
+                    } catch(e) { App.notify(e.message, 'error'); }
                 }
             };
             
             App.bindResourceEvents = (res) => {
                  if (res === 'transactions') {
-                     document.querySelectorAll('.edit-tx-btn').forEach(btn => btn.onclick = () => App.pageLogic.transactions_edit(btn.dataset.id));
-                     document.querySelectorAll('.delete-tx-btn').forEach(btn => btn.onclick = () => App.pageLogic.transactions_delete(btn.dataset.id));
+                     document.querySelectorAll('.edit-transaction-btn').forEach(btn => btn.onclick = () => App.pageLogic.transactions_edit(btn.dataset.id));
+                     document.querySelectorAll('.delete-transaction-btn').forEach(btn => btn.onclick = () => App.pageLogic.transactions_delete(btn.dataset.id));
                  }
             };
             
@@ -1817,6 +2008,7 @@ const App = {
                      formContainer.classList.remove('hidden');
                      const form = document.getElementById('createTxForm');
                      form.reset();
+                     form.date.value = new Date().toISOString().split('T')[0];
                      form.dataset.mode = 'create';
                      delete form.dataset.id;
                      document.getElementById('txCustomFields').innerHTML = '';
@@ -1826,19 +2018,21 @@ const App = {
                      try {
                          // Check if loaded?
                          if(document.getElementById('txCategorySelect').options.length <= 1) {
-                             const [cats, clients, sites] = await Promise.all([
-                                 api.get('/categories'),
-                                 api.get('/clients'),
-                                 api.get('/sites')
-                             ]);
-                             sitesData = sites;
+                              const [cats, clientsRes, sitesRes] = await Promise.all([
+                                  api.get('/categories'),
+                                  api.get('/clients?limit=1000'),
+                                  api.get('/sites?limit=1000')
+                              ]);
+                              const clients = clientsRes.data || [];
+                              const sites = sitesRes.data || [];
+                              sitesData = sites;
                              
                              const filteredCats = cats.filter(c => c.type === mode || c.type === null);
                              document.getElementById('txCategorySelect').innerHTML = '<option value="">Select Category</option>' + filteredCats.map(c => `<option value="${c.id}" data-type="${c.type}" data-fields='${JSON.stringify(c.fields || [])}'>${c.name}</option>`).join('');
                              document.getElementById('txClientSelect').innerHTML = '<option value="">None</option>' + clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
                              document.getElementById('txSiteSelect').innerHTML = '<option value="">Select Client First</option>'; 
                          }
-                     } catch (e) { alert('Failed to load form data: ' + e.message); }
+                     } catch (e) { App.notify('Failed to load form data: ' + e.message, 'error'); }
                  };
              }
              
@@ -1858,14 +2052,14 @@ const App = {
                           let input = '';
                           if (f.field_type === 'select') {
                               const opts = JSON.parse(f.field_options || '[]');
-                              input = `<select name="custom_fields[${f.field_slug}]" class="w-full p-2 border rounded" ${f.is_required ? 'required' : ''}>
+                              input = `<select name="custom_fields[${f.field_slug}]" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors" ${f.is_required ? 'required' : ''}>
                                          <option value="">Select ${f.field_name}</option>
                                          ${opts.map(o => `<option value="${o}">${o}</option>`).join('')}
                                        </select>`;
                           } else if (f.field_type === 'textarea') {
-                              input = `<textarea name="custom_fields[${f.field_slug}]" class="w-full p-2 border rounded" ${f.is_required ? 'required' : ''}></textarea>`;
+                              input = `<textarea name="custom_fields[${f.field_slug}]" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors" ${f.is_required ? 'required' : ''}></textarea>`;
                           } else {
-                              input = `<input type="${f.field_type}" name="custom_fields[${f.field_slug}]" class="w-full p-2 border rounded" ${f.is_required ? 'required' : ''}>`;
+                              input = `<input type="${f.field_type}" name="custom_fields[${f.field_slug}]" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors" ${f.is_required ? 'required' : ''}>`;
                           }
                           
                           return `<div class="form-group mb-2">
@@ -1894,17 +2088,19 @@ const App = {
                          const slug = key.match(/\[(.*?)\]/)[1];
                          data.custom_fields[slug] = val;
                      } else {
-                         data[key] = val;
-                     }
-                 }
+                          data[key] = val === '' ? null : val;
+                      }
+                  }
                  
                  try {
                      const form = e.target;
                      const mode = form.dataset.mode;
                      if (mode === 'edit') {
                           await api.put(`/transactions/${form.dataset.id}`, data);
+                          App.notify('Transaction updated', 'success');
                      } else {
                           await api.post('/transactions', data);
+                          App.notify('Transaction created', 'success');
                      }
                      
                      form.reset();
@@ -1915,7 +2111,7 @@ const App = {
                      App.pagination['transactions'] = null;
                      document.getElementById('txTableBody').innerHTML = '';
                      loadTx();
-                 } catch (err) { alert(err.message); }
+                 } catch (err) { App.notify(err.message, 'error'); }
              };
     },
     
@@ -1933,7 +2129,7 @@ const App = {
                     this.router('dashboard');
                 }
             } catch (err) {
-                alert('Login failed: ' + err.message);
+                App.notify('Login failed: ' + err.message, 'error');
             }
         };
     },
