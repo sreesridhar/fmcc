@@ -13,63 +13,67 @@ class ClientController {
     }
 
     public function index() {
-        $this->auth->requireLogin();
-        if (!$this->auth->hasPermission('clients', 'view')) {
-            http_response_code(403); echo json_encode(['error' => 'Forbidden']); return;
-        }
-        $org_id = $this->auth->getOrgId();
-        
-        $sql = "SELECT c.*, p.name as parent_client_name, o.name as org_name
-                FROM clients c
-                LEFT JOIN clients p ON c.parent_client_id = p.id
-                JOIN organizations o ON c.org_id = o.id";
-        
-        $params = [];
-        
-        if (!$this->auth->hasRole('super_admin')) {
-             if (!$org_id) { echo json_encode([]); return; }
-             $sql .= " WHERE c.org_id = ?";
-             $whereClauses[] = "c.org_id = ?";
-             $params[] = $org_id;
-        }
-        
-        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 1000;
-        $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
-
-        // Count Query
-        $sqlCount = "SELECT COUNT(*) as total FROM clients c";
-        $countParams = []; 
-
-        // Replicate filters for count query
-        if (!empty($whereClauses)) {
-            $sql .= " WHERE " . implode(" AND ", $whereClauses);
-            $sqlCount .= " WHERE " . implode(" AND ", $whereClauses);
-            $countParams = array_merge($countParams, $params); // Copy params for count
-        }
-
-        // Add search filter if present
-        if (isset($_GET['search'])) {
-            $search = "%" . $_GET['search'] . "%";
-            if (empty($whereClauses)) {
-                $sql .= " WHERE c.name LIKE ?";
-                $sqlCount .= " WHERE c.name LIKE ?";
-            } else {
-                $sql .= " AND c.name LIKE ?";
-                $sqlCount .= " AND c.name LIKE ?";
+        try {
+            $this->auth->requireLogin();
+            if (!$this->auth->hasPermission('clients', 'view')) {
+                http_response_code(403); echo json_encode(['error' => 'Forbidden']); return;
             }
-            $params[] = $search;
-            $countParams[] = $search;
+            $org_id = $this->auth->getOrgId();
+            
+            // Base Queries
+            $sql = "SELECT c.*, p.name as parent_client_name, o.name as org_name
+                    FROM clients c
+                    LEFT JOIN clients p ON c.parent_client_id = p.id
+                    JOIN organizations o ON c.org_id = o.id";
+            $sqlCount = "SELECT COUNT(*) as total FROM clients c";
+            
+            $params = [];
+            $countParams = [];
+            $whereClauses = [];
+            
+            // 1. Org Filter
+            if (!$this->auth->hasRole('super_admin')) {
+                 if (!$org_id) { echo json_encode([]); return; }
+                 $whereClauses[] = "c.org_id = ?";
+                 $params[] = $org_id;
+            }
+            
+            // 2. Search Filter
+            if (isset($_GET['search'])) {
+                $whereClauses[] = "c.name LIKE ?";
+                $params[] = "%" . $_GET['search'] . "%";
+            }
+            if (isset($_GET['id'])) {
+                $whereClauses[] = "c.id = ?";
+                $params[] = $_GET['id'];
+            }
+            
+            // Apply Filters
+            if (!empty($whereClauses)) {
+                $whereSql = " WHERE " . implode(" AND ", $whereClauses);
+                $sql .= $whereSql;
+                $sqlCount .= $whereSql;
+                // Params are same for both
+                $countParams = $params;
+            }
+
+            // Pagination
+            $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 1000;
+            $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+            
+            $sql .= " ORDER BY c.created_at DESC LIMIT $limit OFFSET $offset";
+            
+            $clients = $this->db->fetchAll($sql, $params);
+            $total = $this->db->fetchOne($sqlCount, $countParams);
+            
+            echo json_encode([
+                'data' => $clients,
+                'total' => (int)($total['total'] ?? 0)
+            ]);
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            echo json_encode(['error' => $e->getMessage()]);
         }
-        
-        $sql .= " ORDER BY c.created_at DESC LIMIT $limit OFFSET $offset";
-        
-        $clients = $this->db->fetchAll($sql, $params);
-        $total = $this->db->fetchOne($sqlCount, $countParams);
-        
-        echo json_encode([
-            'data' => $clients,
-            'total' => (int)($total['total'] ?? 0)
-        ]);
     }
 
     public function create() {
