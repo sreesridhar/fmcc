@@ -20,8 +20,16 @@ class OrganizationController {
             return;
         }
 
-        $orgs = $this->db->fetchAll("SELECT * FROM organizations ORDER BY id DESC");
-        echo json_encode($orgs);
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 1000;
+        $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+        
+        $orgs = $this->db->fetchAll("SELECT * FROM organizations ORDER BY id DESC LIMIT $limit OFFSET $offset");
+        $count = $this->db->fetchOne("SELECT COUNT(*) as total FROM organizations");
+        
+        echo json_encode([
+            'data' => $orgs,
+            'total' => (int)($count['total'] ?? 0)
+        ]);
     }
 
     public function create() {

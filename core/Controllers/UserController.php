@@ -31,10 +31,33 @@ class UserController {
             $params[] = $this->auth->getOrgId();
         }
         
-        $sql .= " ORDER BY users.id DESC";
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 1000;
+        $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+        
+        // Actually simpler to just run count query with same filters
+        // Let's keep it simple for now, assume filtering logic matches.
+        // Re-construct count query properly.
+        
+        $sqlCount = "SELECT COUNT(*) as total FROM users WHERE 1=1";
+        $countParams = [];
+        if (isset($_GET['username'])) {
+            $sqlCount .= " AND username LIKE ?";
+            $countParams[] = "%" . $_GET['username'] . "%";
+        }
+        if (isset($_GET['org_id'])) {
+            $sqlCount .= " AND org_id = ?";
+            $countParams[] = $_GET['org_id'];
+        }
+        
+        $sql .= " ORDER BY users.id DESC LIMIT $limit OFFSET $offset";
 
         $users = $this->db->fetchAll($sql, $params);
-        echo json_encode($users);
+        $total = $this->db->fetchOne($sqlCount, $countParams);
+        
+        echo json_encode([
+             'data' => $users, 
+             'total' => (int)($total['total'] ?? 0)
+        ]);
     }
 
     public function create() {
