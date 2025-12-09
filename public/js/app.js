@@ -222,7 +222,9 @@ const App = {
         app.innerHTML = `
             <div class="sidebar-overlay" onclick="document.querySelector('.sidebar').classList.remove('open'); this.classList.remove('visible');"></div>
             <div class="sidebar">
-                <div class="sidebar-brand">FMCC Finance</div>
+                <div class="sidebar-brand flex items-center justify-center py-4">
+                    <img src="/assets/logo.png" alt="FMCC" class="h-20 w-auto">
+                </div>
                 <nav>
                     <a href="#" class="nav-item ${page === 'dashboard' ? 'active' : ''}" data-link="dashboard">Dashboard</a>
                     ${this.user && this.user.role === 'super_admin' ? `<a href="#" class="nav-item ${page === 'orgs' ? 'active' : ''}" data-link="orgs">Organizations</a>` : ''}
@@ -277,8 +279,8 @@ const App = {
     pages: {
         login: () => `
             <div class="login-page">
-                <div class="card login-box">
-                    <h2 style="text-align:center; margin-bottom: 1rem;">Login</h2>
+                <div class="card login-box flex flex-col items-center">
+                    <img src="/assets/logo.png" alt="FMCC Logo" class="h-24 w-auto mb-6">
                     <form id="loginForm">
                         <div class="form-group">
                             <label>Username</label>
