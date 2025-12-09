@@ -115,7 +115,21 @@ class OrganizationController {
             $params[] = $name;
         }
 
-        // Handle File Upload
+        // Handle Logo Deletion
+        $deleteLogo = $_POST['delete_logo'] ?? false;
+        if ($deleteLogo) {
+            // Get current logo to delete file
+            $currentOrg = $this->db->fetch("SELECT logo FROM organizations WHERE id = ?", [$orgId]);
+            if ($currentOrg && $currentOrg['logo']) {
+                $filePath = __DIR__ . '/../../public' . $currentOrg['logo'];
+                if (file_exists($filePath)) {
+                    unlink($filePath);
+                }
+                $updates[] = "logo = NULL";
+            }
+        }
+
+        // Handle File Upload (only if not deleting, or replacing)
         if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
             $uploadDir = __DIR__ . '/../../public/uploads/logos';
             if (!is_dir($uploadDir)) {

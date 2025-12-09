@@ -236,8 +236,13 @@ const App = {
                 <form id="orgProfileForm" class="hidden max-w-lg">
                     <div class="mb-6 text-center">
                         <img id="currentLogo" src="" alt="Organization Logo" class="h-24 w-auto mx-auto mb-2 hidden border rounded p-1">
+                        <div class="text-xs text-center">
+                            <button type="button" id="removeLogoBtn" class="text-red-500 text-xs hover:underline hidden">Remove Logo</button>
+                        </div>
                         <div class="text-xs text-gray-500" id="noLogoText">No logo uploaded</div>
                     </div>
+                    
+                    <input type="hidden" name="delete_logo" id="deleteLogoInput" value="0">
                     
                     <div class="form-group">
                         <label>Organization Name</label>
@@ -838,7 +843,17 @@ const App = {
                      img.src = org.logo;
                      img.classList.remove('hidden');
                      document.getElementById('noLogoText').classList.add('hidden');
+                     document.getElementById('removeLogoBtn').classList.remove('hidden');
                  }
+                 
+                 document.getElementById('removeLogoBtn').onclick = () => {
+                     if(confirm('Remove this logo?')) {
+                         document.getElementById('currentLogo').classList.add('hidden');
+                         document.getElementById('noLogoText').classList.remove('hidden');
+                         document.getElementById('removeLogoBtn').classList.add('hidden');
+                         document.getElementById('deleteLogoInput').value = '1';
+                     }
+                 };
                  
                  form.onsubmit = async (e) => {
                      e.preventDefault();
