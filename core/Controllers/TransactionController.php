@@ -36,24 +36,63 @@ class TransactionController {
         
         $params = [];
         
+        // Base Where Clause
+        $whereSql = " WHERE 1=1"; 
+        // Note: For super_admin, we start with 1=1. For others, we append org_id check.
+        // But to be consistent, let's just append.
+        
         if (!$this->auth->hasRole('super_admin')) {
              if (!$org_id) { echo json_encode([]); return; }
-             $sql .= " WHERE t.org_id = ?";
+             $whereSql .= " AND t.org_id = ?";
              $params[] = $org_id;
-        } else {
-             $sql .= " WHERE 1=1"; // Placeholder for appending AND
         }
         
-        if ($type) { $sql .= " AND t.transaction_type = ?"; $params[] = $type; }
-        if ($client_id) { $sql .= " AND t.client_id = ?"; $params[] = $client_id; }
-        if ($site_id) { $sql .= " AND t.site_id = ?"; $params[] = $site_id; }
-        if ($start_date) { $sql .= " AND t.transaction_date >= ?"; $params[] = $start_date; }
-        if ($end_date) { $sql .= " AND t.transaction_date <= ?"; $params[] = $end_date; }
+        // Count params must duplicate basic params
+        $countParams = $params;
+
+        if ($type) { 
+            $whereSql .= " AND t.transaction_type = ?"; 
+            $params[] = $type; 
+            $countParams[] = $type;
+        }
+        if ($client_id) { 
+            $whereSql .= " AND t.client_id = ?"; 
+            $params[] = $client_id; 
+            $countParams[] = $client_id;
+        }
+        if ($site_id) { 
+            $whereSql .= " AND t.site_id = ?"; 
+            $params[] = $site_id; 
+            $countParams[] = $site_id;
+        }
+        if ($start_date) { 
+            $whereSql .= " AND t.transaction_date >= ?"; 
+            $params[] = $start_date; 
+            $countParams[] = $start_date;
+        }
+        if ($end_date) { 
+            $whereSql .= " AND t.transaction_date <= ?"; 
+            $params[] = $end_date; 
+            $countParams[] = $end_date;
+        }
+
+        $sql .= $whereSql;
+
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 1000;
+        $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+
+        // Count total records before applying LIMIT/OFFSET
+        $countSql = "SELECT COUNT(*) as total FROM transactions t JOIN categories c ON t.category_id = c.id" . $whereSql;
+        $total = $this->db->fetchOne($countSql, $countParams);
         
-        $sql .= " ORDER BY t.transaction_date DESC, t.id DESC";
+        $sql .= " ORDER BY t.transaction_date DESC, t.id DESC LIMIT $limit OFFSET $offset";
 
         $transactions = $this->db->fetchAll($sql, $params);
-        echo json_encode($transactions);
+        
+        echo json_encode([
+            'data' => $transactions,
+            'total' => (int)($total['total'] ?? 0)
+        ]);
     }
 
     public function create() {

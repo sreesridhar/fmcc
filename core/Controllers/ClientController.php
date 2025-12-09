@@ -29,13 +29,47 @@ class ClientController {
         if (!$this->auth->hasRole('super_admin')) {
              if (!$org_id) { echo json_encode([]); return; }
              $sql .= " WHERE c.org_id = ?";
+             $whereClauses[] = "c.org_id = ?";
              $params[] = $org_id;
         }
         
-        $sql .= " ORDER BY c.created_at DESC";
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 1000;
+        $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+
+        // Count Query
+        $sqlCount = "SELECT COUNT(*) as total FROM clients c";
+        $countParams = []; 
+
+        // Replicate filters for count query
+        if (!empty($whereClauses)) {
+            $sql .= " WHERE " . implode(" AND ", $whereClauses);
+            $sqlCount .= " WHERE " . implode(" AND ", $whereClauses);
+            $countParams = array_merge($countParams, $params); // Copy params for count
+        }
+
+        // Add search filter if present
+        if (isset($_GET['search'])) {
+            $search = "%" . $_GET['search'] . "%";
+            if (empty($whereClauses)) {
+                $sql .= " WHERE c.name LIKE ?";
+                $sqlCount .= " WHERE c.name LIKE ?";
+            } else {
+                $sql .= " AND c.name LIKE ?";
+                $sqlCount .= " AND c.name LIKE ?";
+            }
+            $params[] = $search;
+            $countParams[] = $search;
+        }
+        
+        $sql .= " ORDER BY c.created_at DESC LIMIT $limit OFFSET $offset";
         
         $clients = $this->db->fetchAll($sql, $params);
-        echo json_encode($clients);
+        $total = $this->db->fetchOne($sqlCount, $countParams);
+        
+        echo json_encode([
+            'data' => $clients,
+            'total' => (int)($total['total'] ?? 0)
+        ]);
     }
 
     public function create() {
