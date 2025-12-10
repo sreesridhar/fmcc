@@ -505,7 +505,7 @@ const App = {
                             <div class="form-group mt-4">
                                 <label class="block font-bold mb-2">Permissions</label>
                                 <div class="border p-2 rounded max-h-60 overflow-y-auto text-sm">
-                                    <div class="hidden md:grid md:grid-cols-5 font-bold mb-2">
+                                    <div class="hidden md:grid md:grid-cols-5 font-bold mb-2 sticky top-0 bg-white z-10 border-b pb-2">
                                         <div>Resource</div>
                                         <div class="text-center">View</div>
                                         <div class="text-center">Create</div>
@@ -518,19 +518,19 @@ const App = {
                                                 <div class="font-medium md:font-normal mb-2 md:mb-0 capitalize text-gray-700">${res.replace('_', ' ')}</div>
                                                 <div class="grid grid-cols-2 gap-2 md:contents">
                                                     <label class="flex items-center space-x-2 md:justify-center cursor-pointer">
-                                                        <input type="checkbox" name="permissions" value="${res}.view" class="form-checkbox text-blue-600 rounded">
+                                                        <input type="checkbox" name="permissions" value="${res}.view" class="form-checkbox text-blue-600 rounded" title="View ${res.replace('_', ' ')}">
                                                         <span class="md:hidden text-sm text-gray-600">View</span>
                                                     </label>
                                                     <label class="flex items-center space-x-2 md:justify-center cursor-pointer">
-                                                        <input type="checkbox" name="permissions" value="${res}.create" class="form-checkbox text-blue-600 rounded">
+                                                        <input type="checkbox" name="permissions" value="${res}.create" class="form-checkbox text-blue-600 rounded" title="Create ${res.replace('_', ' ')}">
                                                         <span class="md:hidden text-sm text-gray-600">Create</span>
                                                     </label>
                                                     <label class="flex items-center space-x-2 md:justify-center cursor-pointer">
-                                                        <input type="checkbox" name="permissions" value="${res}.edit" class="form-checkbox text-blue-600 rounded">
+                                                        <input type="checkbox" name="permissions" value="${res}.edit" class="form-checkbox text-blue-600 rounded" title="Edit ${res.replace('_', ' ')}">
                                                         <span class="md:hidden text-sm text-gray-600">Edit</span>
                                                     </label>
                                                     <label class="flex items-center space-x-2 md:justify-center cursor-pointer">
-                                                        <input type="checkbox" name="permissions" value="${res}.delete" class="form-checkbox text-blue-600 rounded">
+                                                        <input type="checkbox" name="permissions" value="${res}.delete" class="form-checkbox text-blue-600 rounded" title="Delete ${res.replace('_', ' ')}">
                                                         <span class="md:hidden text-sm text-gray-600">Delete</span>
                                                     </label>
                                                 </div>
@@ -1327,8 +1327,8 @@ const App = {
                     <td data-label="Parent">${c.parent_client_name || '-'}</td>
                     <td data-label="Status">${c.status}</td>
                     <td data-label="Actions">
-                        <button class="btn btn-sm btn-secondary edit-client-btn" data-id="${c.id}">Edit</button>
-                        <button class="btn btn-sm btn-danger delete-client-btn" data-id="${c.id}">Delete</button>
+                        ${App.hasPermission('clients', 'edit') ? `<button class="btn btn-sm btn-secondary edit-client-btn" data-id="${c.id}">Edit</button>` : ''}
+                        ${App.hasPermission('clients', 'delete') ? `<button class="btn btn-sm btn-danger delete-client-btn" data-id="${c.id}">Delete</button>` : ''}
                     </td>
                 </tr>
              `;
@@ -1639,7 +1639,7 @@ const App = {
                                                             data-name="${f.field_name}" 
                                                             data-type="${f.field_type}" 
                                                             data-required="${f.is_required}">Edit</button>` : ''}
-                                                        ${App.hasPermission('categories', 'edit') ? `<button class="text-xs text-red-600 delete-field-btn" data-id="${f.id}">Delete</button>` : ''}
+                                                        ${App.hasPermission('categories', 'delete') ? `<button class="text-xs text-red-600 delete-field-btn" data-id="${f.id}">Delete</button>` : ''}
                                                     </div>
                                             </li>`).join('')}
                                     </ul>` 

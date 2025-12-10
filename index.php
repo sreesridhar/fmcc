@@ -103,7 +103,7 @@ $uri = $_SERVER['REQUEST_URI'];
 $path = parse_url($uri, PHP_URL_PATH);
 
 // Simple static file serving check for dev environment
-if (preg_match('/\.(?:png|jpg|jpeg|gif|css|js)$/', $path)) {
+if (preg_match('/\.(?:png|jpg|jpeg|gif|css|js|json|ico)$/', $path)) {
     $file = __DIR__ . '/public' . $path;
     if (file_exists($file)) {
         $mime = mime_content_type($file);
@@ -113,6 +113,8 @@ if (preg_match('/\.(?:png|jpg|jpeg|gif|css|js)$/', $path)) {
         } elseif (str_ends_with($file, '.js')) {
              $mime = 'application/javascript';
              header("Cache-Control: no-cache, no-store, must-revalidate");
+        } elseif (str_ends_with($file, '.json')) {
+             $mime = 'application/json';
         } else {
              // Cache images
              header("Cache-Control: public, max-age=86400"); // Cache for 1 day
